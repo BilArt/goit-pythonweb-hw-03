@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request
 import os
 import json
 from datetime import datetime
@@ -18,27 +18,35 @@ def message():
         message = request.form.get("message")
         timestamp = datetime.now().isoformat()
 
+        os.makedirs("storage", exist_ok=True)
+
         if not os.path.exists(STORAGE_PATH):
-            os.makedirs(os.path.dirname(STORAGE_PATH), exist_ok=True)
             with open(STORAGE_PATH, "w") as file:
                 json.dump({}, file)
 
         with open(STORAGE_PATH, "r+") as file:
-            data = json.load(file)
+            try:
+                data = json.load(file)
+            except json.JSONDecodeError:
+                data = {}
             data[timestamp] = {"username": username, "message": message}
             file.seek(0)
             json.dump(data, file, indent=4)
 
     return render_template("message.html")
 
-@app.route("/static/<path:path>")
-def static_files(path):
-    return send_from_directory("static", path)
-
 @app.route("/read")
 def read():
+    os.makedirs("storage", exist_ok=True)
+    if not os.path.exists(STORAGE_PATH):
+        with open(STORAGE_PATH, "w") as file:
+            json.dump({}, file)
+
     with open(STORAGE_PATH, "r") as file:
-        data = json.load(file)
+        try:
+            data = json.load(file)
+        except json.JSONDecodeError:
+            data = {}
     return render_template("read.html", messages=data)
 
 @app.errorhandler(404)
